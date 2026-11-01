@@ -16,8 +16,8 @@ frame:Hide()
 
 local isLFGConfirming = false
 
--- Check active PvP queues for a pending confirmation dialog
-local function IsBattlefieldConfirming()
+-- Check active queues for pending confirmation
+local function IsConfirming()
     local maxID = (GetMaxBattlefieldID and GetMaxBattlefieldID()) or 0
     for i = 1, maxID do
         local status = GetBattlefieldStatus(i)
@@ -28,28 +28,28 @@ local function IsBattlefieldConfirming()
     if PVPReadyDialog and PVPReadyDialog:IsShown() then
         return true
     end
+    if isLFGConfirming or (LFGDungeonReadyDialog and LFGDungeonReadyDialog:IsShown()) then
+        return true
+    end
     return false
 end
 
 local function UpdateIndicator()
-    local battlefieldConfirm = IsBattlefieldConfirming()
-    local lfgConfirm = isLFGConfirming or (LFGDungeonReadyDialog and LFGDungeonReadyDialog:IsShown())
-
-    if battlefieldConfirm or lfgConfirm then
+    if IsConfirming() then
         frame:Show()
     else
         frame:Hide()
     end
 end
 
--- Hook Blizzard's PVPReadyDialog display function (as used in BetterBlizzQueue)
+-- Hook Blizzard's PVPReadyDialog (as in BetterBlizzQueue)
 if PVPReadyDialog_Display then
     hooksecurefunc("PVPReadyDialog_Display", function()
         frame:Show()
     end)
 end
 
-if PVPReadyDialog then
+if PVPReadyDialog and PVPReadyDialog.HookScript then
     PVPReadyDialog:HookScript("OnShow", function()
         frame:Show()
     end)
@@ -58,7 +58,7 @@ if PVPReadyDialog then
     end)
 end
 
-if LFGDungeonReadyDialog then
+if LFGDungeonReadyDialog and LFGDungeonReadyDialog.HookScript then
     LFGDungeonReadyDialog:HookScript("OnShow", function()
         isLFGConfirming = true
         frame:Show()
@@ -69,10 +69,8 @@ if LFGDungeonReadyDialog then
     end)
 end
 
--- Event Handling: Battlefield and LFG queue notifications
+-- Event Handling: valid retail WoW events only
 frame:RegisterEvent("UPDATE_BATTLEFIELD_STATUS")
-frame:RegisterEvent("PVP_BATTLEGROUND_CONFIRMATION_SHOW")
-frame:RegisterEvent("PVP_BATTLEGROUND_CONFIRMATION_HIDE")
 frame:RegisterEvent("LFG_PROPOSAL_SHOW")
 frame:RegisterEvent("LFG_PROPOSAL_SUCCEEDED")
 frame:RegisterEvent("LFG_PROPOSAL_DONE")
@@ -80,16 +78,14 @@ frame:RegisterEvent("LFG_PROPOSAL_FAILED")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 
 frame:SetScript("OnEvent", function(self, event, ...)
-    if event == "PVP_BATTLEGROUND_CONFIRMATION_SHOW" or event == "LFG_PROPOSAL_SHOW" then
-        if event == "LFG_PROPOSAL_SHOW" then
-            isLFGConfirming = true
-        end
+    if event == "LFG_PROPOSAL_SHOW" then
+        isLFGConfirming = true
         frame:Show()
     elseif event == "LFG_PROPOSAL_SUCCEEDED" or event == "LFG_PROPOSAL_DONE" or event == "LFG_PROPOSAL_FAILED" then
         isLFGConfirming = false
         UpdateIndicator()
     else
-        -- UPDATE_BATTLEFIELD_STATUS, PVP_BATTLEGROUND_CONFIRMATION_HIDE, PLAYER_ENTERING_WORLD
+        -- UPDATE_BATTLEFIELD_STATUS, PLAYER_ENTERING_WORLD
         UpdateIndicator()
     end
 end)
@@ -112,7 +108,7 @@ local function ToggleTestPixel()
             testTimer:Cancel()
         end
         testTimer = C_Timer.NewTimer(10, function()
-            if not (IsBattlefieldConfirming() or isLFGConfirming or (LFGDungeonReadyDialog and LFGDungeonReadyDialog:IsShown())) then
+            if not IsConfirming() then
                 frame:Hide()
             end
             testTimer = nil
@@ -122,11 +118,12 @@ end
 
 SLASH_AIKOARENANOTIFIER1 = "/aan"
 SLASH_AIKOARENANOTIFIER2 = "/aikonotifier"
+SLASH_AIKOARENANOTIFIER3 = "/aikoarena"
 SlashCmdList["AIKOARENANOTIFIER"] = function(msg)
     local command = msg and msg:match("^%s*(.-)%s*$"):lower() or ""
 
     if command == "status" then
-        local confirming = IsBattlefieldConfirming() or isLFGConfirming or (LFGDungeonReadyDialog and LFGDungeonReadyDialog:IsShown())
+        local confirming = IsConfirming()
         print(string.format("|cffff00ff[AikoArenaNotifier]|r Queue confirming: %s | Frame shown: %s",
             confirming and "|cff00ff00YES|r" or "|cffff0000NO|r",
             frame:IsShown() and "|cff00ff00YES|r" or "|cffff0000NO|r"))
