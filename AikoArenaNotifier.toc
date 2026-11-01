@@ -1,4 +1,4 @@
-## Interface: 120105, 120100, 120000, 110200
+## Interface: 120105
 ## Title: AikoArenaNotifier
 ## Notes: Visual indicator for PvP queue pops
 ## Author: Aiko

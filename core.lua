@@ -97,40 +97,48 @@ end)
 -- Slash commands for calibration & testing
 local testTimer = nil
 
+local function ToggleTestPixel()
+    if frame:IsShown() then
+        if testTimer then
+            testTimer:Cancel()
+            testTimer = nil
+        end
+        frame:Hide()
+        print("|cffff00ff[AikoArenaNotifier]|r Test pixel |cffff0000HIDDEN|r.")
+    else
+        frame:Show()
+        print("|cffff00ff[AikoArenaNotifier]|r Test pixel |cff00ff00SHOWN|r (5x5 magenta at TOPLEFT 0,0) for 10s. Type |cffffff00/aan|r again to hide.")
+        if testTimer then
+            testTimer:Cancel()
+        end
+        testTimer = C_Timer.NewTimer(10, function()
+            if not (IsBattlefieldConfirming() or isLFGConfirming or (LFGDungeonReadyDialog and LFGDungeonReadyDialog:IsShown())) then
+                frame:Hide()
+            end
+            testTimer = nil
+        end)
+    end
+end
+
 SLASH_AIKOARENANOTIFIER1 = "/aan"
 SLASH_AIKOARENANOTIFIER2 = "/aikonotifier"
 SlashCmdList["AIKOARENANOTIFIER"] = function(msg)
     local command = msg and msg:match("^%s*(.-)%s*$"):lower() or ""
 
-    if command == "test" then
-        if frame:IsShown() then
-            if testTimer then
-                testTimer:Cancel()
-                testTimer = nil
-            end
-            frame:Hide()
-            print("|cffff00ff[AikoArenaNotifier]|r Test pixel hidden.")
-        else
-            frame:Show()
-            print("|cffff00ff[AikoArenaNotifier]|r Test pixel displayed (magenta 5x5 at TOPLEFT 0,0) for 10 seconds.")
-            if testTimer then
-                testTimer:Cancel()
-            end
-            testTimer = C_Timer.NewTimer(10, function()
-                if not (IsBattlefieldConfirming() or isLFGConfirming or (LFGDungeonReadyDialog and LFGDungeonReadyDialog:IsShown())) then
-                    frame:Hide()
-                end
-                testTimer = nil
-            end)
-        end
-    elseif command == "status" then
+    if command == "status" then
         local confirming = IsBattlefieldConfirming() or isLFGConfirming or (LFGDungeonReadyDialog and LFGDungeonReadyDialog:IsShown())
         print(string.format("|cffff00ff[AikoArenaNotifier]|r Queue confirming: %s | Frame shown: %s",
             confirming and "|cff00ff00YES|r" or "|cffff0000NO|r",
             frame:IsShown() and "|cff00ff00YES|r" or "|cffff0000NO|r"))
-    else
+    elseif command == "help" then
         print("|cffff00ff[AikoArenaNotifier]|r Commands:")
-        print("  |cffffff00/aan test|r - Toggle test pixel (auto-hides after 10s) for desktop script calibration")
+        print("  |cffffff00/aan|r or |cffffff00/aan test|r - Toggle test pixel (auto-hides after 10s)")
         print("  |cffffff00/aan status|r - Print current queue confirmation status")
+    else
+        -- Default to toggling the test pixel directly
+        ToggleTestPixel()
     end
 end
+
+-- Confirmation print on load
+print("|cffff00ff[AikoArenaNotifier]|r loaded. Type |cffffff00/aan|r to test pixel.")
