@@ -14,78 +14,96 @@ texture:SetColorTexture(1.0, 0.0, 1.0, 1.0) -- Bright Magenta #FF00FF
 
 frame:Hide()
 
-local isLFGConfirming = false
-
--- Check active queues for pending confirmation
-local function IsConfirming()
-    local maxID = (GetMaxBattlefieldID and GetMaxBattlefieldID()) or 0
-    for i = 1, maxID do
-        local status = GetBattlefieldStatus(i)
-        if status == "confirm" then
-            return true
-        end
-    end
+-- Check whether any queue confirmation dialog is physically visible on screen
+local function IsDialogShown()
     if PVPReadyDialog and PVPReadyDialog:IsShown() then
         return true
     end
-    if isLFGConfirming or (LFGDungeonReadyDialog and LFGDungeonReadyDialog:IsShown()) then
+    if LFGDungeonReadyDialog and LFGDungeonReadyDialog:IsShown() then
         return true
     end
     return false
 end
 
 local function UpdateIndicator()
-    if IsConfirming() then
+    if IsDialogShown() then
         frame:Show()
     else
         frame:Hide()
     end
 end
 
--- Hook Blizzard's PVPReadyDialog (as in BetterBlizzQueue)
+-- Safely hook dialog show, hide, and button clicks
+local function HookDialog(dialog)
+    if not dialog or dialog._aanHooked then return end
+    dialog._aanHooked = true
+
+    if dialog.HookScript then
+        dialog:HookScript("OnShow", function()
+            frame:Show()
+        end)
+        dialog:HookScript("OnHide", function()
+            frame:Hide()
+        end)
+    end
+
+    if dialog.enterButton and dialog.enterButton.HookScript then
+        dialog.enterButton:HookScript("OnClick", function()
+            frame:Hide()
+        end)
+    end
+    if dialog.leaveButton and dialog.leaveButton.HookScript then
+        dialog.leaveButton:HookScript("OnClick", function()
+            frame:Hide()
+        end)
+    end
+    if dialog.hideButton and dialog.hideButton.HookScript then
+        dialog.hideButton:HookScript("OnClick", function()
+            frame:Hide()
+        end)
+    end
+    if dialog.closeButton and dialog.closeButton.HookScript then
+        dialog.closeButton:HookScript("OnClick", function()
+            frame:Hide()
+        end)
+    end
+end
+
+-- Hook Blizzard's PVPReadyDialog_Display function
 if PVPReadyDialog_Display then
-    hooksecurefunc("PVPReadyDialog_Display", function()
+    hooksecurefunc("PVPReadyDialog_Display", function(dialog)
+        HookDialog(dialog or PVPReadyDialog)
         frame:Show()
     end)
 end
 
-if PVPReadyDialog and PVPReadyDialog.HookScript then
-    PVPReadyDialog:HookScript("OnShow", function()
-        frame:Show()
-    end)
-    PVPReadyDialog:HookScript("OnHide", function()
-        UpdateIndicator()
-    end)
-end
+-- Initial hook attempts for known dialogs
+HookDialog(PVPReadyDialog)
+HookDialog(LFGDungeonReadyDialog)
 
-if LFGDungeonReadyDialog and LFGDungeonReadyDialog.HookScript then
-    LFGDungeonReadyDialog:HookScript("OnShow", function()
-        isLFGConfirming = true
-        frame:Show()
-    end)
-    LFGDungeonReadyDialog:HookScript("OnHide", function()
-        isLFGConfirming = false
-        UpdateIndicator()
-    end)
-end
-
--- Event Handling: valid retail WoW events only
+-- Event Handling: valid retail events only
 frame:RegisterEvent("UPDATE_BATTLEFIELD_STATUS")
 frame:RegisterEvent("LFG_PROPOSAL_SHOW")
 frame:RegisterEvent("LFG_PROPOSAL_SUCCEEDED")
 frame:RegisterEvent("LFG_PROPOSAL_DONE")
 frame:RegisterEvent("LFG_PROPOSAL_FAILED")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+frame:RegisterEvent("PLAYER_LOGIN")
 
 frame:SetScript("OnEvent", function(self, event, ...)
-    if event == "LFG_PROPOSAL_SHOW" then
-        isLFGConfirming = true
+    if event == "PLAYER_LOGIN" then
+        HookDialog(PVPReadyDialog)
+        HookDialog(LFGDungeonReadyDialog)
+        UpdateIndicator()
+    elseif event == "LFG_PROPOSAL_SHOW" then
+        HookDialog(LFGDungeonReadyDialog)
         frame:Show()
     elseif event == "LFG_PROPOSAL_SUCCEEDED" or event == "LFG_PROPOSAL_DONE" or event == "LFG_PROPOSAL_FAILED" then
-        isLFGConfirming = false
-        UpdateIndicator()
+        frame:Hide()
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        frame:Hide()
     else
-        -- UPDATE_BATTLEFIELD_STATUS, PLAYER_ENTERING_WORLD
+        -- UPDATE_BATTLEFIELD_STATUS
         UpdateIndicator()
     end
 end)
@@ -108,7 +126,7 @@ local function ToggleTestPixel()
             testTimer:Cancel()
         end
         testTimer = C_Timer.NewTimer(10, function()
-            if not IsConfirming() then
+            if not IsDialogShown() then
                 frame:Hide()
             end
             testTimer = nil
@@ -123,16 +141,15 @@ SlashCmdList["AIKOARENANOTIFIER"] = function(msg)
     local command = msg and msg:match("^%s*(.-)%s*$"):lower() or ""
 
     if command == "status" then
-        local confirming = IsConfirming()
-        print(string.format("|cffff00ff[AikoArenaNotifier]|r Queue confirming: %s | Frame shown: %s",
-            confirming and "|cff00ff00YES|r" or "|cffff0000NO|r",
+        local shown = IsDialogShown()
+        print(string.format("|cffff00ff[AikoArenaNotifier]|r Dialog visible: %s | Pixel indicator shown: %s",
+            shown and "|cff00ff00YES|r" or "|cffff0000NO|r",
             frame:IsShown() and "|cff00ff00YES|r" or "|cffff0000NO|r"))
     elseif command == "help" then
         print("|cffff00ff[AikoArenaNotifier]|r Commands:")
         print("  |cffffff00/aan|r or |cffffff00/aan test|r - Toggle test pixel (auto-hides after 10s)")
-        print("  |cffffff00/aan status|r - Print current queue confirmation status")
+        print("  |cffffff00/aan status|r - Print current dialog confirmation status")
     else
-        -- Default to toggling the test pixel directly
         ToggleTestPixel()
     end
 end
