@@ -10,12 +10,14 @@ frame:EnableMouse(false)
 
 local texture = frame:CreateTexture(nil, "BACKGROUND")
 texture:SetAllPoints(frame)
-texture:SetColorTexture(1.0, 0.0, 1.0, 1.0) -- Magenta #FF00FF
+texture:SetColorTexture(1.0, 0.0, 1.0, 1.0) -- Bright Magenta #FF00FF
 
 frame:Hide()
 
+local isLFGConfirming = false
+
 -- Check active PvP queues for a pending confirmation dialog
-local function CheckQueueStatus()
+local function IsBattlefieldConfirming()
     local maxID = (GetMaxBattlefieldID and GetMaxBattlefieldID()) or 0
     for i = 1, maxID do
         local status = GetBattlefieldStatus(i)
@@ -23,35 +25,73 @@ local function CheckQueueStatus()
             return true
         end
     end
+    if PVPReadyDialog and PVPReadyDialog:IsShown() then
+        return true
+    end
     return false
 end
 
-local function UpdateIndicator(event)
-    if event == "PVP_BATTLEGROUND_CONFIRMATION_SHOW" then
+local function UpdateIndicator()
+    local battlefieldConfirm = IsBattlefieldConfirming()
+    local lfgConfirm = isLFGConfirming or (LFGDungeonReadyDialog and LFGDungeonReadyDialog:IsShown())
+
+    if battlefieldConfirm or lfgConfirm then
         frame:Show()
-    elseif event == "PVP_BATTLEGROUND_CONFIRMATION_HIDE" then
-        if CheckQueueStatus() then
-            frame:Show()
-        else
-            frame:Hide()
-        end
     else
-        -- UPDATE_BATTLEFIELD_STATUS, PLAYER_ENTERING_WORLD, etc.
-        if CheckQueueStatus() then
-            frame:Show()
-        else
-            frame:Hide()
-        end
+        frame:Hide()
     end
 end
 
+-- Hook Blizzard's PVPReadyDialog display function (as used in BetterBlizzQueue)
+if PVPReadyDialog_Display then
+    hooksecurefunc("PVPReadyDialog_Display", function()
+        frame:Show()
+    end)
+end
+
+if PVPReadyDialog then
+    PVPReadyDialog:HookScript("OnShow", function()
+        frame:Show()
+    end)
+    PVPReadyDialog:HookScript("OnHide", function()
+        UpdateIndicator()
+    end)
+end
+
+if LFGDungeonReadyDialog then
+    LFGDungeonReadyDialog:HookScript("OnShow", function()
+        isLFGConfirming = true
+        frame:Show()
+    end)
+    LFGDungeonReadyDialog:HookScript("OnHide", function()
+        isLFGConfirming = false
+        UpdateIndicator()
+    end)
+end
+
+-- Event Handling: Battlefield and LFG queue notifications
 frame:RegisterEvent("UPDATE_BATTLEFIELD_STATUS")
 frame:RegisterEvent("PVP_BATTLEGROUND_CONFIRMATION_SHOW")
 frame:RegisterEvent("PVP_BATTLEGROUND_CONFIRMATION_HIDE")
+frame:RegisterEvent("LFG_PROPOSAL_SHOW")
+frame:RegisterEvent("LFG_PROPOSAL_SUCCEEDED")
+frame:RegisterEvent("LFG_PROPOSAL_DONE")
+frame:RegisterEvent("LFG_PROPOSAL_FAILED")
 frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 
 frame:SetScript("OnEvent", function(self, event, ...)
-    UpdateIndicator(event)
+    if event == "PVP_BATTLEGROUND_CONFIRMATION_SHOW" or event == "LFG_PROPOSAL_SHOW" then
+        if event == "LFG_PROPOSAL_SHOW" then
+            isLFGConfirming = true
+        end
+        frame:Show()
+    elseif event == "LFG_PROPOSAL_SUCCEEDED" or event == "LFG_PROPOSAL_DONE" or event == "LFG_PROPOSAL_FAILED" then
+        isLFGConfirming = false
+        UpdateIndicator()
+    else
+        -- UPDATE_BATTLEFIELD_STATUS, PVP_BATTLEGROUND_CONFIRMATION_HIDE, PLAYER_ENTERING_WORLD
+        UpdateIndicator()
+    end
 end)
 
 -- Slash commands for calibration & testing
@@ -77,14 +117,14 @@ SlashCmdList["AIKOARENANOTIFIER"] = function(msg)
                 testTimer:Cancel()
             end
             testTimer = C_Timer.NewTimer(10, function()
-                if not CheckQueueStatus() then
+                if not (IsBattlefieldConfirming() or isLFGConfirming or (LFGDungeonReadyDialog and LFGDungeonReadyDialog:IsShown())) then
                     frame:Hide()
                 end
                 testTimer = nil
             end)
         end
     elseif command == "status" then
-        local confirming = CheckQueueStatus()
+        local confirming = IsBattlefieldConfirming() or isLFGConfirming or (LFGDungeonReadyDialog and LFGDungeonReadyDialog:IsShown())
         print(string.format("|cffff00ff[AikoArenaNotifier]|r Queue confirming: %s | Frame shown: %s",
             confirming and "|cff00ff00YES|r" or "|cffff0000NO|r",
             frame:IsShown() and "|cff00ff00YES|r" or "|cffff0000NO|r"))
