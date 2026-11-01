@@ -88,7 +88,7 @@ frame:SetScript("OnEvent", function(self, event, ...)
     end
 end)
 
--- Slash commands for calibration & testing
+-- Slash commands
 SLASH_AIKOARENANOTIFIER1 = "/aan"
 SLASH_AIKOARENANOTIFIER2 = "/aikonotifier"
 SLASH_AIKOARENANOTIFIER3 = "/aikoarena"
@@ -96,19 +96,20 @@ SlashCmdList["AIKOARENANOTIFIER"] = function(msg)
     local raw = msg and msg:match("^%s*(.-)%s*$") or ""
     local command = raw:lower()
 
-    if command == "hide" or (frame:IsShown() and raw == "") then
-        HideIndicator()
-        print(string.format("%s Pixel hidden.", PREFIX))
+    if command == "test" then
+        TriggerPop(DISPLAY_DURATION, true)
+    elseif command == "about" then
+        print(string.format("%s Passive visual indicator for PvP queue pops.", PREFIX))
+        print("  Displays a 5x5 purple square at the top-left corner of the screen for 3 seconds whenever an Arena, Solo Shuffle, or Battleground queue confirmation dialog appears.")
     elseif command == "help" then
         print(string.format("%s Commands:", PREFIX))
-        print("  |cffA330C9/aan|r - Show test pixel for 3 seconds (or toggle off)")
-        print("  |cffA330C9/aan <seconds>|r - Show test pixel for custom seconds (e.g. /aan 5)")
-        print("  |cffA330C9/aan hide|r - Hide pixel immediately")
+        print("  |cffA330C9/aan test|r - Flash the indicator for 3 seconds")
+        print("  |cffA330C9/aan about|r - Information about this addon")
+        print("  |cffA330C9/aan help|r - Show available commands")
     else
-        local secs = tonumber(command) or DISPLAY_DURATION
-        TriggerPop(secs, true)
+        print(string.format("%s Commands: |cffA330C9/aan test|r | |cffA330C9/aan about|r | |cffA330C9/aan help|r", PREFIX))
     end
 end
 
 -- Startup load message matching AikoQoL style
-print(string.format("%s Use |cffA330C9/aan|r to test indicator", PREFIX))
+print(string.format("%s Use |cffA330C9/aan test|r to test indicator", PREFIX))
