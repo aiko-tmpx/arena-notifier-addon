@@ -14,19 +14,34 @@ texture:SetColorTexture(1.0, 0.0, 1.0, 1.0) -- Bright Magenta #FF00FF
 
 frame:Hide()
 
--- Check whether any queue confirmation dialog is physically visible on screen
-local function IsDialogShown()
-    if PVPReadyDialog and PVPReadyDialog:IsShown() then
+-- State variables
+local isPvPConfirming = false
+local isLFGConfirming = false
+local isTestActive = false
+local currentTestId = 0
+
+-- Check whether any queue confirmation dialog is ACTUALLY visible on screen
+local function IsAnyDialogVisible()
+    if PVPReadyDialog and PVPReadyDialog:IsVisible() then
         return true
     end
-    if LFGDungeonReadyDialog and LFGDungeonReadyDialog:IsShown() then
+    if LFGDungeonReadyPopup and LFGDungeonReadyPopup:IsVisible() then
+        return true
+    end
+    if LFGDungeonReadyDialog and LFGDungeonReadyDialog:IsVisible() then
         return true
     end
     return false
 end
 
+-- Update the indicator frame
 local function UpdateIndicator()
-    if IsDialogShown() then
+    if isTestActive then
+        frame:Show()
+        return
+    end
+
+    if isPvPConfirming or isLFGConfirming or IsAnyDialogVisible() then
         frame:Show()
     else
         frame:Hide()
@@ -34,52 +49,68 @@ local function UpdateIndicator()
 end
 
 -- Safely hook dialog show, hide, and button clicks
-local function HookDialog(dialog)
+local function HookDialog(dialog, setConfirmFlag)
     if not dialog or dialog._aanHooked then return end
     dialog._aanHooked = true
 
     if dialog.HookScript then
         dialog:HookScript("OnShow", function()
-            frame:Show()
+            setConfirmFlag(true)
+            UpdateIndicator()
         end)
         dialog:HookScript("OnHide", function()
-            frame:Hide()
+            setConfirmFlag(false)
+            UpdateIndicator()
         end)
     end
 
     if dialog.enterButton and dialog.enterButton.HookScript then
         dialog.enterButton:HookScript("OnClick", function()
-            frame:Hide()
+            setConfirmFlag(false)
+            UpdateIndicator()
         end)
     end
     if dialog.leaveButton and dialog.leaveButton.HookScript then
         dialog.leaveButton:HookScript("OnClick", function()
-            frame:Hide()
+            setConfirmFlag(false)
+            UpdateIndicator()
         end)
     end
     if dialog.hideButton and dialog.hideButton.HookScript then
         dialog.hideButton:HookScript("OnClick", function()
-            frame:Hide()
+            setConfirmFlag(false)
+            UpdateIndicator()
         end)
     end
     if dialog.closeButton and dialog.closeButton.HookScript then
         dialog.closeButton:HookScript("OnClick", function()
-            frame:Hide()
+            setConfirmFlag(false)
+            UpdateIndicator()
         end)
     end
+end
+
+local function SetPvPConfirm(val)
+    isPvPConfirming = val
+end
+
+local function SetLFGConfirm(val)
+    isLFGConfirming = val
 end
 
 -- Hook Blizzard's PVPReadyDialog_Display function
 if PVPReadyDialog_Display then
     hooksecurefunc("PVPReadyDialog_Display", function(dialog)
-        HookDialog(dialog or PVPReadyDialog)
-        frame:Show()
+        HookDialog(dialog or PVPReadyDialog, SetPvPConfirm)
+        isPvPConfirming = true
+        UpdateIndicator()
     end)
 end
 
 -- Initial hook attempts for known dialogs
-HookDialog(PVPReadyDialog)
-HookDialog(LFGDungeonReadyDialog)
+HookDialog(PVPReadyDialog, SetPvPConfirm)
+HookDialog(LFGDungeonReadyPopup, SetLFGConfirm)
+HookDialog(LFGDungeonReadyDialog, SetLFGConfirm)
 
 -- Event Handling: valid retail events only
 frame:RegisterEvent("UPDATE_BATTLEFIELD_STATUS")
@@ -92,35 +123,58 @@ frame:RegisterEvent("PLAYER_LOGIN")
 
 frame:SetScript("OnEvent", function(self, event, ...)
     if event == "PLAYER_LOGIN" then
-        HookDialog(PVPReadyDialog)
-        HookDialog(LFGDungeonReadyDialog)
+        HookDialog(PVPReadyDialog, SetPvPConfirm)
+        HookDialog(LFGDungeonReadyPopup, SetLFGConfirm)
+        HookDialog(LFGDungeonReadyDialog, SetLFGConfirm)
+        isPvPConfirming = false
+        isLFGConfirming = false
         UpdateIndicator()
     elseif event == "LFG_PROPOSAL_SHOW" then
-        HookDialog(LFGDungeonReadyDialog)
-        frame:Show()
+        HookDialog(LFGDungeonReadyPopup, SetLFGConfirm)
+        HookDialog(LFGDungeonReadyDialog, SetLFGConfirm)
+        isLFGConfirming = true
+        UpdateIndicator()
     elseif event == "LFG_PROPOSAL_SUCCEEDED" or event == "LFG_PROPOSAL_DONE" or event == "LFG_PROPOSAL_FAILED" then
-        frame:Hide()
+        isLFGConfirming = false
+        UpdateIndicator()
     elseif event == "PLAYER_ENTERING_WORLD" then
+        isPvPConfirming = false
+        isLFGConfirming = false
+        isTestActive = false
+        currentTestId = currentTestId + 1
         frame:Hide()
-    else
-        -- UPDATE_BATTLEFIELD_STATUS
+    elseif event == "UPDATE_BATTLEFIELD_STATUS" then
+        local hasConfirm = false
+        local maxID = (GetMaxBattlefieldID and GetMaxBattlefieldID()) or 0
+        for i = 1, maxID do
+            if GetBattlefieldStatus(i) == "confirm" then
+                hasConfirm = true
+                break
+            end
+        end
+
+        if hasConfirm then
+            -- If queue is confirming and dialog is visible (or being shown), keep indicator active
+            if IsAnyDialogVisible() then
+                isPvPConfirming = true
+            end
+        else
+            isPvPConfirming = false
+        end
         UpdateIndicator()
     end
 end)
 
 -- Slash commands for calibration & testing
-local isTestActive = false
-local testTimer = nil
+local function HideTestPixel(testId, reason)
+    if testId and testId ~= currentTestId then
+        return
+    end
 
-local function HideTestPixel(reason)
+    currentTestId = currentTestId + 1
     isTestActive = false
-    if testTimer then
-        testTimer:Cancel()
-        testTimer = nil
-    end
-    if not IsDialogShown() then
-        frame:Hide()
-    end
+    UpdateIndicator()
+
     if reason == "timeout" then
         print("|cffff00ff[AikoArenaNotifier]|r Test pixel auto-hidden (timeout).")
     else
@@ -129,30 +183,28 @@ local function HideTestPixel(reason)
 end
 
 local function ShowTestPixel(duration)
+    currentTestId = currentTestId + 1
+    local myTestId = currentTestId
     isTestActive = true
-    frame:Show()
-    if testTimer then
-        testTimer:Cancel()
-        testTimer = nil
-    end
+    UpdateIndicator()
 
     local secs = tonumber(duration)
     if secs and secs > 0 then
         print(string.format("|cffff00ff[AikoArenaNotifier]|r Test pixel |cff00ff00SHOWN|r for %d seconds. Type |cffffff00/aan|r to hide.", secs))
-        testTimer = C_Timer.NewTimer(secs, function()
-            HideTestPixel("timeout")
+        C_Timer.After(secs, function()
+            HideTestPixel(myTestId, "timeout")
         end)
     else
         print("|cffff00ff[AikoArenaNotifier]|r Test pixel |cff00ff00SHOWN|r (toggle mode, auto-hides in 60s). Type |cffffff00/aan|r to hide.")
-        testTimer = C_Timer.NewTimer(60, function()
-            HideTestPixel("timeout")
+        C_Timer.After(60, function()
+            HideTestPixel(myTestId, "timeout")
         end)
     end
 end
 
 local function ToggleTestPixel(arg)
-    if isTestActive or frame:IsShown() then
-        HideTestPixel("manual")
+    if isTestActive then
+        HideTestPixel(nil, "manual")
     else
         ShowTestPixel(arg)
     end
@@ -166,15 +218,16 @@ SlashCmdList["AIKOARENANOTIFIER"] = function(msg)
     local command = raw:lower()
 
     if command == "status" then
-        local shown = IsDialogShown()
-        print(string.format("|cffff00ff[AikoArenaNotifier]|r Dialog visible: %s | Pixel indicator shown: %s | Test active: %s",
-            shown and "|cff00ff00YES|r" or "|cffff0000NO|r",
-            frame:IsShown() and "|cff00ff00YES|r" or "|cffff0000NO|r",
-            isTestActive and "|cff00ff00YES|r" or "|cffff0000NO|r"))
+        local dialogVis = IsAnyDialogVisible()
+        print(string.format("|cffff00ff[AikoArenaNotifier]|r Dialog visible: %s | PvP confirming: %s | LFG confirming: %s | Pixel shown: %s",
+            dialogVis and "|cff00ff00YES|r" or "|cffff0000NO|r",
+            isPvPConfirming and "|cff00ff00YES|r" or "|cffff0000NO|r",
+            isLFGConfirming and "|cff00ff00YES|r" or "|cffff0000NO|r",
+            frame:IsShown() and "|cff00ff00YES|r" or "|cffff0000NO|r"))
     elseif command == "help" then
         print("|cffff00ff[AikoArenaNotifier]|r Commands:")
         print("  |cffffff00/aan|r - Toggle test pixel on/off (auto-hides after 60s failsafe)")
-        print("  |cffffff00/aan <seconds>|r - Show test pixel for custom seconds (e.g. /aan 10)")
+        print("  |cffffff00/aan <seconds>|r - Show test pixel for custom seconds (e.g. /aan 5)")
         print("  |cffffff00/aan status|r - Print current dialog confirmation status")
     elseif tonumber(command) then
         ShowTestPixel(tonumber(command))
