@@ -2,8 +2,10 @@
 
 Minimal, standalone World of Warcraft retail addon (compatible with current Retail and WoW Midnight) that acts as a passive visual indicator for PvP queue pops.
 
-## Repository
-- **GitHub:** [https://github.com/aiko-tmpx/arena-notifier](https://github.com/aiko-tmpx/arena-notifier)
+## Repository & Links
+- **GitHub Repository:** [https://github.com/aiko-tmpx/arena-notifier-addon](https://github.com/aiko-tmpx/arena-notifier-addon)
+- **Latest Release:** [https://github.com/aiko-tmpx/arena-notifier-addon/releases/latest](https://github.com/aiko-tmpx/arena-notifier-addon/releases/latest)
+- **Issue Tracker:** [https://github.com/aiko-tmpx/arena-notifier-addon/issues](https://github.com/aiko-tmpx/arena-notifier-addon/issues)
 
 ## Overview
 When an Arena, Solo Shuffle, or Battleground queue pop confirmation dialog appears, the addon renders a small 5x5 static pure magenta square (`#FF00FF`) at the top-left corner of the screen (`UIParent` TOPLEFT `0, 0` on `TOOLTIP` strata) for **3 seconds** (or until the loading screen).

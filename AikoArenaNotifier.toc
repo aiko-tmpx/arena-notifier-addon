@@ -3,5 +3,6 @@
 ## Notes: Visual indicator for PvP queue pops
 ## Author: Aiko
 ## Version: 1.0.0
+## X-Website: https://github.com/aiko-tmpx/arena-notifier-addon
 
 core.lua
