@@ -109,28 +109,52 @@ frame:SetScript("OnEvent", function(self, event, ...)
 end)
 
 -- Slash commands for calibration & testing
+local isTestActive = false
 local testTimer = nil
 
-local function ToggleTestPixel()
-    if frame:IsShown() then
-        if testTimer then
-            testTimer:Cancel()
-            testTimer = nil
-        end
+local function HideTestPixel(reason)
+    isTestActive = false
+    if testTimer then
+        testTimer:Cancel()
+        testTimer = nil
+    end
+    if not IsDialogShown() then
         frame:Hide()
-        print("|cffff00ff[AikoArenaNotifier]|r Test pixel |cffff0000HIDDEN|r.")
+    end
+    if reason == "timeout" then
+        print("|cffff00ff[AikoArenaNotifier]|r Test pixel auto-hidden (timeout).")
     else
-        frame:Show()
-        print("|cffff00ff[AikoArenaNotifier]|r Test pixel |cff00ff00SHOWN|r (5x5 magenta at TOPLEFT 0,0) for 10s. Type |cffffff00/aan|r again to hide.")
-        if testTimer then
-            testTimer:Cancel()
-        end
-        testTimer = C_Timer.NewTimer(10, function()
-            if not IsDialogShown() then
-                frame:Hide()
-            end
-            testTimer = nil
+        print("|cffff00ff[AikoArenaNotifier]|r Test pixel |cffff0000HIDDEN|r.")
+    end
+end
+
+local function ShowTestPixel(duration)
+    isTestActive = true
+    frame:Show()
+    if testTimer then
+        testTimer:Cancel()
+        testTimer = nil
+    end
+
+    local secs = tonumber(duration)
+    if secs and secs > 0 then
+        print(string.format("|cffff00ff[AikoArenaNotifier]|r Test pixel |cff00ff00SHOWN|r for %d seconds. Type |cffffff00/aan|r to hide.", secs))
+        testTimer = C_Timer.NewTimer(secs, function()
+            HideTestPixel("timeout")
         end)
+    else
+        print("|cffff00ff[AikoArenaNotifier]|r Test pixel |cff00ff00SHOWN|r (toggle mode, auto-hides in 60s). Type |cffffff00/aan|r to hide.")
+        testTimer = C_Timer.NewTimer(60, function()
+            HideTestPixel("timeout")
+        end)
+    end
+end
+
+local function ToggleTestPixel(arg)
+    if isTestActive or frame:IsShown() then
+        HideTestPixel("manual")
+    else
+        ShowTestPixel(arg)
     end
 end
 
@@ -138,17 +162,22 @@ SLASH_AIKOARENANOTIFIER1 = "/aan"
 SLASH_AIKOARENANOTIFIER2 = "/aikonotifier"
 SLASH_AIKOARENANOTIFIER3 = "/aikoarena"
 SlashCmdList["AIKOARENANOTIFIER"] = function(msg)
-    local command = msg and msg:match("^%s*(.-)%s*$"):lower() or ""
+    local raw = msg and msg:match("^%s*(.-)%s*$") or ""
+    local command = raw:lower()
 
     if command == "status" then
         local shown = IsDialogShown()
-        print(string.format("|cffff00ff[AikoArenaNotifier]|r Dialog visible: %s | Pixel indicator shown: %s",
+        print(string.format("|cffff00ff[AikoArenaNotifier]|r Dialog visible: %s | Pixel indicator shown: %s | Test active: %s",
             shown and "|cff00ff00YES|r" or "|cffff0000NO|r",
-            frame:IsShown() and "|cff00ff00YES|r" or "|cffff0000NO|r"))
+            frame:IsShown() and "|cff00ff00YES|r" or "|cffff0000NO|r",
+            isTestActive and "|cff00ff00YES|r" or "|cffff0000NO|r"))
     elseif command == "help" then
         print("|cffff00ff[AikoArenaNotifier]|r Commands:")
-        print("  |cffffff00/aan|r or |cffffff00/aan test|r - Toggle test pixel (auto-hides after 10s)")
+        print("  |cffffff00/aan|r - Toggle test pixel on/off (auto-hides after 60s failsafe)")
+        print("  |cffffff00/aan <seconds>|r - Show test pixel for custom seconds (e.g. /aan 10)")
         print("  |cffffff00/aan status|r - Print current dialog confirmation status")
+    elseif tonumber(command) then
+        ShowTestPixel(tonumber(command))
     else
         ToggleTestPixel()
     end
