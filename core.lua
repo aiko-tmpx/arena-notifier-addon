@@ -13,7 +13,7 @@ frame:EnableMouse(false)
 
 local texture = frame:CreateTexture(nil, "BACKGROUND")
 texture:SetAllPoints(frame)
-texture:SetColorTexture(163 / 255, 48 / 255, 201 / 255, 1.0) -- #A330C9 (RGB: 0.639, 0.188, 0.788)
+texture:SetColorTexture(1.0, 0.0, 1.0, 1.0) -- Pure Magenta #FF00FF (RGB: 1.0, 0.0, 1.0)
 
 frame:Hide()
 
@@ -100,7 +100,7 @@ SlashCmdList["AIKOARENANOTIFIER"] = function(msg)
         TriggerPop(DISPLAY_DURATION, true)
     elseif command == "about" then
         print(string.format("%s Passive visual indicator for PvP queue pops.", PREFIX))
-        print("  Displays a 5x5 purple square at the top-left corner of the screen for 3 seconds whenever an Arena, Solo Shuffle, or Battleground queue confirmation dialog appears.")
+        print("  Displays a 5x5 magenta square at the top-left corner of the screen for 3 seconds whenever an Arena, Solo Shuffle, or Battleground queue confirmation dialog appears.")
     elseif command == "help" then
         print(string.format("%s Commands:", PREFIX))
         print("  |cffA330C9/aan test|r - Flash the indicator for 3 seconds")
