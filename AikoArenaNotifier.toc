@@ -1,0 +1,7 @@
+## Interface: 120105, 120100, 120000, 110200
+## Title: AikoArenaNotifier
+## Notes: Visual indicator for PvP queue pops
+## Author: Aiko
+## Version: 1.0.0
+
+core.lua
