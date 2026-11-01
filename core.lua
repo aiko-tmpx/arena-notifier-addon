@@ -3,6 +3,7 @@
 -- Author: Aiko
 
 local DISPLAY_DURATION = 3 -- Seconds the indicator stays visible on queue pop
+local PREFIX = "|cffA330C9AikoArenaNotifier:|r"
 
 local frame = CreateFrame("Frame", "AikoArenaNotifierFrame", UIParent)
 frame:SetSize(5, 5)
@@ -12,7 +13,7 @@ frame:EnableMouse(false)
 
 local texture = frame:CreateTexture(nil, "BACKGROUND")
 texture:SetAllPoints(frame)
-texture:SetColorTexture(1.0, 0.0, 1.0, 1.0) -- Pure Magenta #FF00FF
+texture:SetColorTexture(163 / 255, 48 / 255, 201 / 255, 1.0) -- #A330C9 (RGB: 0.639, 0.188, 0.788)
 
 frame:Hide()
 
@@ -39,14 +40,14 @@ local function TriggerPop(duration, isTest)
     frame:Show()
 
     if isTest then
-        print(string.format("|cffff00ff[AikoArenaNotifier]|r Test pixel |cff00ff00SHOWN|r for %d seconds.", secs))
+        print(string.format("%s Test pixel shown for %d seconds.", PREFIX, secs))
     end
 
     C_Timer.After(secs, function()
         if popToken == currentToken then
             frame:Hide()
             if isTest then
-                print("|cffff00ff[AikoArenaNotifier]|r Test pixel |cffff0000HIDDEN|r (timeout).")
+                print(string.format("%s Test pixel hidden (timeout).", PREFIX))
             end
         end
     end)
@@ -97,17 +98,17 @@ SlashCmdList["AIKOARENANOTIFIER"] = function(msg)
 
     if command == "hide" or (frame:IsShown() and raw == "") then
         HideIndicator()
-        print("|cffff00ff[AikoArenaNotifier]|r Pixel |cffff0000HIDDEN|r.")
+        print(string.format("%s Pixel hidden.", PREFIX))
     elseif command == "help" then
-        print("|cffff00ff[AikoArenaNotifier]|r Commands:")
-        print("  |cffffff00/aan|r - Show test pixel for 3 seconds (or toggle off)")
-        print("  |cffffff00/aan <seconds>|r - Show test pixel for custom seconds (e.g. /aan 5)")
-        print("  |cffffff00/aan hide|r - Hide pixel immediately")
+        print(string.format("%s Commands:", PREFIX))
+        print("  |cffA330C9/aan|r - Show test pixel for 3 seconds (or toggle off)")
+        print("  |cffA330C9/aan <seconds>|r - Show test pixel for custom seconds (e.g. /aan 5)")
+        print("  |cffA330C9/aan hide|r - Hide pixel immediately")
     else
         local secs = tonumber(command) or DISPLAY_DURATION
         TriggerPop(secs, true)
     end
 end
 
--- Confirmation print on load
-print("|cffff00ff[AikoArenaNotifier]|r loaded. Type |cffffff00/aan|r to test.")
+-- Startup load message matching AikoQoL style
+print(string.format("%s Use |cffA330C9/aan|r to test indicator", PREFIX))
